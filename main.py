@@ -200,7 +200,7 @@ async def process_teacher_data(callback: types.CallbackQuery, state: FSMContext)
     if current < total_teachers:
         next_num = current + 1
         await state.update_data(teachers=teachers, current_teacher=next_num)
-        await state.set_state(DarsTaqsimot.teacher_name)
+        await state.set_state(Dars_Taqsimot_name := DarsTaqsimot.teacher_name)
         await callback.message.edit_text(
             f"<b>{next_num}-o'qituvchining F.I.Sh. (Familiyasi, Ismi, Sharifi)ni kiriting:</b>", 
             parse_mode="HTML"
@@ -218,29 +218,32 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
     sorted_teachers = sorted(teachers, key=lambda x: x['step'])
     
     remaining_hours = total_hours
-    results = []
-    
-    # 1-bosqich: Har bir o'qituvchiga dastlab 1 stavkadan berish
+    teacher_assignments = {t['id']: 0 for t in sorted_teachers}
+
+    # 1-bosqich: Har bir o'qituvchiga imkon qadar 1 stavkadan (rate) taqsimlab chiqish
     for t in sorted_teachers:
         if remaining_hours <= 0:
-            assigned = 0
-        else:
-            assigned = min(remaining_hours, rate)
-            remaining_hours -= assigned
-        results.append((t, assigned))
-    
-    # 2-bosqich: Ortiqcha soatlarni yuqori toifalilarga qat'iy limitgacha (27 yoki 30 soatgacha) taqsimlash
+            break
+        give = min(remaining_hours, rate)
+        teacher_assignments[t['id']] += give
+        remaining_hours -= give
+
+    # 2-bosqich: Agar hali ham soat qolgan bo'lsa (o'qituvchi yetishmasa), 
+    # ustuvorligidan qat'iy nazar mavjud o'qituvchilarga 1.5 stavkagacha (max_limit) qo'shib berish
     if remaining_hours > 0:
-        updated_results = []
-        for t, h in results:
-            if remaining_hours > 0 and t['step'] in [1, 2, 3]:
-                can_take = max_limit - h
-                if can_take > 0:
-                    add_h = min(remaining_hours, can_take)
-                    h += add_h
-                    remaining_hours -= add_h
-            updated_results.append((t, h))
-        results = updated_results
+        for t in sorted_teachers:
+            if remaining_hours <= 0:
+                break
+            can_take_more = max_limit - teacher_assignments[t['id']]
+            if can_take_more > 0:
+                give_more = min(remaining_hours, can_take_more)
+                teacher_assignments[t['id']] += give_more
+                remaining_hours -= give_more
+
+    # Natijalarni tartiblash
+    results = []
+    for t in sorted_teachers:
+        results.append((t, teacher_assignments[t['id']]))
 
     # Telegram uchun matn tayyorlash
     res_text = (
@@ -261,19 +264,26 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         )
     
     if remaining_hours > 0:
-        res_text += f"\n⚠️ <b>Eslatma:</b> Barcha o'qituvchilar limiti to'ldi. Taqsimlanmay qolgan soat: <b>{remaining_hours} soat</b> (Yana o'qituvchi qo'shish tavsiya etiladi)."
+        res_text += f"\n⚠️ <b>Diqqat:</b> Barcha o'qituvchilar 1.5 stavka (maksimal limit)ga yetdi. Taqsimlanmay qolgan soat: <b>{remaining_hours} soat</b> (Yangi o'qituvchi qo'shish talab etiladi)."
+    else:
+        res_text += f"\n✅ <b>Barcha dars soatlari to'liq va adolatli taqsimlandi!</b>"
 
     # Word (.docx) hujjati yaratish
     doc = docx.Document()
     doc.add_heading('DARS SOATLARINI TAQSIMLASH BAYONNOMASI', 0)
     doc.add_paragraph(f"Fan: {data['subject_name']}")
     doc.add_paragraph(f"Jami dars soati: {total_hours} soat (1 stavka = {rate} soat, Maksimal limit = {max_limit} soat)")
-    doc.add_paragraph("Ustuvor ketma-ketlik bo'yicha taqsimot natijalari:")
+    doc.add_paragraph("Ustuvor ketma-ketlik va stavka limitlari bo'yicha taqsimot natijalari:")
     
     for idx, (t, h) in enumerate(results, 1):
         stavka = round(h / rate, 2)
         doc.add_paragraph(f"{idx}. {t['fish']} - {t['status_name']}: {h} soat ({stavka} stavka)", style='List Bullet')
     
+    if remaining_hours > 0:
+        doc.add_paragraph(f"Eslatma: Barcha o'qituvchilar limiti to'lib, yana {remaining_hours} soat ortib qoldi.")
+    else:
+        doc.add_paragraph("Soatlar to'liq taqsimlandi.")
+
     doc.add_paragraph("\nMaktab direktori: _______________  (Imzo)")
     
     file_path = f"dars_taqsimoti_{message.chat.id}.docx"

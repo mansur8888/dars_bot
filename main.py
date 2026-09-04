@@ -3,7 +3,7 @@ import os
 from aiogram import Bot, Dispatcher
 from aiohttp import web
 
-TOKEN = "BOT_TOKENINGIZNI_SHUYERGA_YOZING"
+TOKEN = "8685388983:AAFwjfV-RvOrq4vT1hI_SxIqIPd0-lZ6cZg"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -24,3 +24,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    

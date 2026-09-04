@@ -108,7 +108,7 @@ async def select_subject(callback: types.CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(
         f"<b>Fan:</b> {selected_sub}\n\n"
-        f"Ushbu fan bo'yicha maktabdagi <b>jami dars soatini</b> kiriting (Faqat raqam, masalan: 54):",
+        f"Ushbu fan bo'yicha maktabdagi <b>jami dars soatini</b> kiriting (Faqat raqam, masalan: 51):",
         parse_mode="HTML"
     )
     await callback.answer()
@@ -116,7 +116,7 @@ async def select_subject(callback: types.CallbackQuery, state: FSMContext):
 @dp.message(DarsTaqsimot.total_hours)
 async def process_total_hours(message: types.Message, state: FSMContext):
     if not message.text.isdigit():
-        await message.answer("Iltimos, faqat raqam kiriting (Masalan: 54):", reply_markup=main_kb)
+        await message.answer("Iltimos, faqat raqam kiriting (Masalan: 51):", reply_markup=main_kb)
         return
     
     total = int(message.text)
@@ -228,7 +228,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         teacher_assignments[t['id']] += give
         remaining_hours -= give
 
-    # 2-bosqich: Qolgan soatni ustuvorlik bo'yicha 1.5 stavkagacha (max_limit) to'ldirib chiqish
+    # 2-bosqich: Qolgan soatni ustuvorlik tartibida 1.5 stavkagacha (max_limit) to'ldirib chiqish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -238,7 +238,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             teacher_assignments[t['id']] += give_more
             remaining_hours -= give_more
 
-    # 3-bosqich (Muhim tuzatish): Agar shundan keyin ham soat ortib qolsa, o'qituvchilarning 1.5 stavka limitidan qat'i nazar (yoki limitni oshirgan holda) qolgan soatni teng taqsimlash
+    # 3-bosqich (Mukammal yakuniy taqsimot): Agar shundan keyin ham soat qolgan bo'lsa, ustuvor o'qituvchilarga 1 soatdan qo'shib chiqish
     if remaining_hours > 0:
         idx = 0
         while remaining_hours > 0:
@@ -267,7 +267,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             f" └ Dars soati: <b>{h} soat</b> ({stavka} stavka)\n"
         )
     
-    res_text += f"\n✅ <b>Barcha dars soatlari to'liq va adolatli taqsimlandi!</b>"
+    res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi va hech qanday qoldiq qolmadi!</b>"
 
     # Word (.docx) hujjati yaratish
     doc = docx.Document()
@@ -280,7 +280,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         stavka = round(h / rate, 2)
         doc.add_paragraph(f"{idx}. {t['fish']} - {t['status_name']}: {h} soat ({stavka} stavka)", style='List Bullet')
     
-    doc.add_paragraph("\nSoatlar to'liq va teng taqsimlandi.")
+    doc.add_paragraph("\nSoatlar to'liq va adolatli taqsimlandi.")
     doc.add_paragraph("\nMaktab direktori: _______________  (Imzo)")
     
     file_path = f"dars_taqsimoti_{message.chat.id}.docx"
@@ -321,4 +321,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    

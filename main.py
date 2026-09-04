@@ -108,7 +108,7 @@ async def select_subject(callback: types.CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(
         f"<b>Fan:</b> {selected_sub}\n\n"
-        f"Ushbu fan bo'yicha maktabdagi <b>jami dars soatini</b> kiriting (Faqat raqam, masalan: 56):",
+        f"Ushbu fan bo'yicha maktabdagi <b>jami dars soatini</b> kiriting (Faqat raqam, masalan: 54):",
         parse_mode="HTML"
     )
     await callback.answer()
@@ -116,7 +116,7 @@ async def select_subject(callback: types.CallbackQuery, state: FSMContext):
 @dp.message(DarsTaqsimot.total_hours)
 async def process_total_hours(message: types.Message, state: FSMContext):
     if not message.text.isdigit():
-        await message.answer("Iltimos, faqat raqam kiriting (Masalan: 56):", reply_markup=main_kb)
+        await message.answer("Iltimos, faqat raqam kiriting (Masalan: 54):", reply_markup=main_kb)
         return
     
     total = int(message.text)
@@ -210,9 +210,9 @@ async def process_teacher_data(callback: types.CallbackQuery, state: FSMContext)
     await callback.answer()
 
 async def calculate_and_show(message: types.Message, state: FSMContext, data: dict, teachers: list):
-    rate = data['rate'] # 18 yoki 20 soat (1 stavka)
-    max_limit = data['max_limit'] # 27 yoki 30 soat (1.5 stavka)
-    total_hours = data['total_hours']
+    rate = int(data['rate']) # 18 yoki 20 soat (1 stavka)
+    max_limit = int(data['max_limit']) # 27 yoki 30 soat (1.5 stavka)
+    total_hours = int(data['total_hours'])
     
     # Rasmiy 10 ta ketma-ketlik bo'yicha saralash
     sorted_teachers = sorted(teachers, key=lambda x: x['step'])
@@ -322,3 +322,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    

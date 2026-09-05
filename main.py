@@ -20,7 +20,6 @@ class DarsTaqsimot(StatesGroup):
     teacher_name = State()
     teachers_data = State()
 
-# Tugmalarga sig'ishi uchun qisqartirilgan va tushunarli nomlar
 SUBJECTS_YUQORI = [
     "Ona tili", "O'zbek tili", "Adabiyot", 
     "Matematika (Algebra/Geometriya)", "Chet tili", 
@@ -87,7 +86,6 @@ async def select_category(message: types.Message, state: FSMContext):
     )
     
     subjects = SUBJECTS_BOSHLANGICH if is_boshlangich else SUBJECTS_YUQORI
-    # Har bir fanni bittadan qatorga (vertikal) joylab chiqamiz, shunda yozuvlar to'liq sig'adi
     kb_list = [[InlineKeyboardButton(text=sub, callback_data=f"sub_{i}")] for i, sub in enumerate(subjects)]
     kb = InlineKeyboardMarkup(inline_keyboard=kb_list)
     
@@ -217,6 +215,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
     remaining_hours = total_hours
     teacher_assignments = {t['id']: 0 for t in sorted_teachers}
 
+    # 1-bosqich: Barchaga 1 stavkadan (rate) taqsimlab chiqish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -224,6 +223,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         teacher_assignments[t['id']] += give
         remaining_hours -= give
 
+    # 2-bosqich: Qolgan soatni 1.5 stavka limitigacha (max_limit) to'ldirish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -233,6 +233,8 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             teacher_assignments[t['id']] += give_more
             remaining_hours -= give_more
 
+    # 3-bosqich (YANGILANGAN): Agar soatlar hali ham qolgan bo'lsa (masalan, umumiy soat juda ko'p bo'lib limit yetmay qolganda), 
+    # ustuvor o'qituvchilarga qoldiq soatni to'liq qo'shib berish (limit cheklovisiz, soat yerdab qolmasligi uchun)
     if remaining_hours > 0:
         idx = 0
         while remaining_hours > 0:
@@ -260,7 +262,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             f" └ Dars soati: <b>{h} soat</b> ({stavka} stavka)\n"
         )
     
-    res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi va qoldiq qolmadi!</b>"
+    res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi va hech qanday qoldiq qolmadi!</b>"
 
     doc = docx.Document()
     doc.add_heading('DARS SOATLARINI TAQSIMLASH BAYONNOMASI', 0)

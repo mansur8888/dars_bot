@@ -20,13 +20,9 @@ class DarsTaqsimot(StatesGroup):
     teacher_step = State()
     teacher_category = State()
     teacher_has_cert = State()
-    teacher_cert_subject = State()
-    teacher_cert_type = State()
-    teacher_cert_level = State()
     teacher_retrain = State()
     teacher_side = State()
     teacher_student = State()
-    teacher_middle = State()
     teacher_leader = State()
 
 SUBJECTS_YUQORI = [
@@ -140,7 +136,6 @@ async def process_edu_level(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data.in_(["cls_bosh", "cls_yuqori"]))
 async def process_class_type(callback: types.CallbackQuery, state: FSMContext):
-    # Agar boshlang'ich sinf tanlansa 1 stavka = 18 soat, yuqori sinf uchun = 20 soat
     is_bosh = (callback.data == "cls_bosh")
     rate = 18 if is_bosh else 20
     await state.update_data(rate=rate)
@@ -290,17 +285,16 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     teachers = data['teachers']
     
-    rate = data.get('rate', 20) # Boshlang'ich uchun 18, yuqori uchun 20
-    max_limit = int(rate * 1.5) # 1.5 stavka limit (masalan, 20 soatlik uchun 30 soat)
+    rate = data.get('rate', 20) 
+    max_limit = int(rate * 1.5) # 1.5 stavka (masalan, 30 soat)
     total_hours = int(data['total_hours'])
     
-    # Nizom ketma-ketligi bo'yicha saralash
     sorted_teachers = sorted(teachers, key=lambda x: x['step'])
     
     remaining_hours = total_hours
     teacher_assignments = {t['id']: 0 for t in sorted_teachers}
 
-    # 1-bosqich: Har bir o'qituvchiga NAVBAT BILAN o'z limitigacha (1.5 stavkagacha) to'liq soat berib borish
+    # 1-bosqich: Har bir o'qituvchiga NAVBAT BILAN 1.5 stavkagacha (max_limit) to'ldirib berish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -309,8 +303,12 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
         teacher_assignments[t['id']] += give
         remaining_hours -= give
 
-    # 2-bosqich: Agar shundan keyin ham dars ortib qolsa (masalan, o'qituvchilar kam bo'lib, jami soat juda ko'p bo'lsa), 
-    # cheklovni olib tashlab yoki taqsimotni davom ettirish mumkin, lekin hozirgi holatda 1.5 stavka limit yetarli bo'ladi.
+    # 2-bosqich: Agar shundan keyin ham dars ortib qolsa va oxirgi o'qituvchi ro'yxatda oxirgisi bo'lsa, 
+    # ortib qolgan qismni to'liq oxirgi o'qituvchiga berib yuborish (taqsimlanmagan soat qolmasligi uchun)
+    if remaining_hours > 0 and sorted_teachers:
+        last_teacher_id = sorted_teachers[-1]['id']
+        teacher_assignments[last_teacher_id] += remaining_hours
+        remaining_hours = 0
 
     results = [(t, teacher_assignments[t['id']]) for t in sorted_teachers]
 

@@ -6,14 +6,12 @@ from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-from aiohttp import web
 
 TOKEN = "8685388983:AAFwjfV-RvOrq4vT1hI_SxIqIPd0-lZ6cZg"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# FSM Holatlari
 class DarsTaqsimot(StatesGroup):
     category = State()
     subject = State()
@@ -22,24 +20,23 @@ class DarsTaqsimot(StatesGroup):
     teacher_name = State()
     teachers_data = State()
 
-# 2026-2027 o'quv yili fanlari
+# Tugmalarga sig'ishi uchun qisqartirilgan va tushunarli nomlar
 SUBJECTS_YUQORI = [
-    "Ona tili", "O'zbek tili / Davlat tili", "Adabiyot", 
-    "Matematika (Algebra / Geometriya)", "Chet tili (Ingliz/Nemis/Fransuz)", 
-    "Ikkinchi chet tili", "Tarix (O'zbekiston tarixi / Jahon tarixi)", 
+    "Ona tili", "O'zbek tili", "Adabiyot", 
+    "Matematika (Algebra/Geometriya)", "Chet tili", 
+    "Ikkinchi chet tili", "Tarix", 
     "Huquqshunoslik", "Geografiya", "Fizika", "Kimyo", "Biologiya", 
-    "Tabiiy fan (Science)", "Informatika va axborot texnologiyalari", 
-    "Tarbiya", "Jismoniy tarbiya", "Texnologiya", "Tasviriy san'at va chizmachilik", 
-    "Musiqa madaniyati", "CHYOT (Chaqiriqqa qadar boshlang'ich tayyorgarlik)"
+    "Tabiiy fan (Science)", "Informatika (IT)", 
+    "Tarbiya", "Jismoniy tarbiya", "Texnologiya", "Tasviriy san'at / Chizmachilik", 
+    "Musiqa madaniyati", "CHYOT (Boshlang'ich tayyorgarlik)"
 ]
 
 SUBJECTS_BOSHLANGICH = [
     "O'qish savodxonligi / Ona tili", "Matematika", "Tabiiy fan (Science)", 
     "Tarbiya", "Tasviriy san'at", "Musiqa madaniyati", "Texnologiya", 
-    "Jismoniy tarbiya", "Chet tili (Boshlang'ich)"
+    "Jismoniy tarbiya", "Chet tili"
 ]
 
-# Asosiy menyu klaviaturasi (Start tugmasi bilan)
 main_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🚀 Botni boshlash / Restart")],
@@ -90,6 +87,7 @@ async def select_category(message: types.Message, state: FSMContext):
     )
     
     subjects = SUBJECTS_BOSHLANGICH if is_boshlangich else SUBJECTS_YUQORI
+    # Har bir fanni bittadan qatorga (vertikal) joylab chiqamiz, shunda yozuvlar to'liq sig'adi
     kb_list = [[InlineKeyboardButton(text=sub, callback_data=f"sub_{i}")] for i, sub in enumerate(subjects)]
     kb = InlineKeyboardMarkup(inline_keyboard=kb_list)
     
@@ -108,7 +106,7 @@ async def select_subject(callback: types.CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(
         f"<b>Fan:</b> {selected_sub}\n\n"
-        f"Ushbu fan bo'yicha maktabdagi <b>jami dars soatini</b> kiriting (Faqat raqam, masalan: 51):",
+        f"Ushbu fan bo'yicha maktabdagi <b>jami dars soatini</b> kiriting (Faqat raqam):",
         parse_mode="HTML"
     )
     await callback.answer()
@@ -116,14 +114,14 @@ async def select_subject(callback: types.CallbackQuery, state: FSMContext):
 @dp.message(DarsTaqsimot.total_hours)
 async def process_total_hours(message: types.Message, state: FSMContext):
     if not message.text.isdigit():
-        await message.answer("Iltimos, faqat raqam kiriting (Masalan: 51):", reply_markup=main_kb)
+        await message.answer("Iltimos, faqat raqam kiriting:", reply_markup=main_kb)
         return
     
     total = int(message.text)
     await state.update_data(total_hours=total)
     await state.set_state(DarsTaqsimot.teacher_count)
     
-    await message.answer("Ushbu fan bo'yicha <b>nechta o'qituvchi</b> bor? (Raqam kiriting, masalan: 2):", parse_mode="HTML", reply_markup=main_kb)
+    await message.answer("Ushbu fan bo'yicha <b>nechta o'qituvchi</b> bor? (Raqam kiriting):", parse_mode="HTML", reply_markup=main_kb)
 
 @dp.message(DarsTaqsimot.teacher_count)
 async def process_teacher_count(message: types.Message, state: FSMContext):
@@ -135,7 +133,7 @@ async def process_teacher_count(message: types.Message, state: FSMContext):
     await state.update_data(teacher_count=count, current_teacher=1, teachers=[])
     
     await state.set_state(DarsTaqsimot.teacher_name)
-    await message.answer("<b>1-o'qituvchining F.I.Sh. (Familiyasi, Ismi, Sharifi)ni kiriting:</b>\n<i>(Masalan: Salomov Mansur Saatovich)</i>", parse_mode="HTML", reply_markup=main_kb)
+    await message.answer("<b>1-o'qituvchining F.I.Sh. (Familiyasi, Ismi, Sharifi)ni kiriting:</b>", parse_mode="HTML", reply_markup=main_kb)
 
 @dp.message(DarsTaqsimot.teacher_name)
 async def process_teacher_name(message: types.Message, state: FSMContext):
@@ -210,17 +208,15 @@ async def process_teacher_data(callback: types.CallbackQuery, state: FSMContext)
     await callback.answer()
 
 async def calculate_and_show(message: types.Message, state: FSMContext, data: dict, teachers: list):
-    rate = int(data['rate']) # 1 stavka (18 yoki 20)
-    max_limit = int(data['max_limit']) # 1.5 stavka (27 yoki 30)
+    rate = int(data['rate'])
+    max_limit = int(data['max_limit'])
     total_hours = int(data['total_hours'])
     
-    # Rasmiy 10 ta ketma-ketlik bo'yicha ustuvor saralash
     sorted_teachers = sorted(teachers, key=lambda x: x['step'])
     
     remaining_hours = total_hours
     teacher_assignments = {t['id']: 0 for t in sorted_teachers}
 
-    # 1-bosqich: Har bir o'qituvchiga dastlab 1 stavkadan (rate) taqsimlab chiqish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -228,7 +224,6 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         teacher_assignments[t['id']] += give
         remaining_hours -= give
 
-    # 2-bosqich: Qolgan soatni ustuvorlik tartibida 1.5 stavkagacha (max_limit) to'ldirib chiqish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -238,7 +233,6 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             teacher_assignments[t['id']] += give_more
             remaining_hours -= give_more
 
-    # 3-bosqich (Mukammal yakuniy taqsimot): Agar shundan keyin ham soat qolgan bo'lsa, ustuvor o'qituvchilarga 1 soatdan qo'shib chiqish
     if remaining_hours > 0:
         idx = 0
         while remaining_hours > 0:
@@ -249,7 +243,6 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
 
     results = [(t, teacher_assignments[t['id']]) for t in sorted_teachers]
 
-    # Telegram uchun matn tayyorlash
     res_text = (
         f"📊 <b>DARS TAQSIMOTI NATIJASI (RASMIY NIZOM BO'YICHA)</b>\n\n"
         f"🔹 <b>Fan:</b> {data['subject_name']}\n"
@@ -267,9 +260,8 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             f" └ Dars soati: <b>{h} soat</b> ({stavka} stavka)\n"
         )
     
-    res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi va hech qanday qoldiq qolmadi!</b>"
+    res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi va qoldiq qolmadi!</b>"
 
-    # Word (.docx) hujjati yaratish
     doc = docx.Document()
     doc.add_heading('DARS SOATLARINI TAQSIMLASH BAYONNOMASI', 0)
     doc.add_paragraph(f"Fan: {data['subject_name']}")
@@ -296,7 +288,6 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         
     await state.clear()
 
-# O'zboshimcha matn yoki rasm yuborilganda xatolik chiqarmaslik uchun filtr
 @dp.message()
 async def block_random_messages(message: types.Message):
     await message.answer(
@@ -304,20 +295,9 @@ async def block_random_messages(message: types.Message):
         reply_markup=main_kb
     )
 
-# Web server (Render uchun)
-async def handle(request):
-    return web.Response(text="Bot ishlayapti!")
-
 async def main():
-    app = web.Application()
-    app.router.add_get('/', handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
+    

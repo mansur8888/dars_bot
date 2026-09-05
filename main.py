@@ -223,7 +223,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         teacher_assignments[t['id']] += give
         remaining_hours -= give
 
-    # 2-bosqich: Qolgan soatni 1.5 stavka limitigacha (max_limit) to'ldirish
+    # 2-bosqich: Qolgan soatni har bir o'qituvchining 1.5 stavka limitigacha (max_limit) to'ldirib borish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -232,16 +232,6 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             give_more = min(remaining_hours, can_take_more)
             teacher_assignments[t['id']] += give_more
             remaining_hours -= give_more
-
-    # 3-bosqich (YANGILANGAN): Agar soatlar hali ham qolgan bo'lsa (masalan, umumiy soat juda ko'p bo'lib limit yetmay qolganda), 
-    # ustuvor o'qituvchilarga qoldiq soatni to'liq qo'shib berish (limit cheklovisiz, soat yerdab qolmasligi uchun)
-    if remaining_hours > 0:
-        idx = 0
-        while remaining_hours > 0:
-            t_id = sorted_teachers[idx % len(sorted_teachers)]['id']
-            teacher_assignments[t_id] += 1
-            remaining_hours -= 1
-            idx += 1
 
     results = [(t, teacher_assignments[t['id']]) for t in sorted_teachers]
 
@@ -262,7 +252,10 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
             f" └ Dars soati: <b>{h} soat</b> ({stavka} stavka)\n"
         )
     
-    res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi va hech qanday qoldiq qolmadi!</b>"
+    if remaining_hours == 0:
+        res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi va hech qanday qoldiq qolmadi!</b>"
+    else:
+        res_text += f"\n⚠️ <b>Eslatma:</b> O'qituvchilarning 1.5 stavka (maksimal {max_limit} soat) limiti to'lgani sababli, taqsimlanmay qolgan soat: <b>{remaining_hours} soat.</b>"
 
     doc = docx.Document()
     doc.add_heading('DARS SOATLARINI TAQSIMLASH BAYONNOMASI', 0)
@@ -274,7 +267,7 @@ async def calculate_and_show(message: types.Message, state: FSMContext, data: di
         stavka = round(h / rate, 2)
         doc.add_paragraph(f"{idx}. {t['fish']} - {t['status_name']}: {h} soat ({stavka} stavka)", style='List Bullet')
     
-    doc.add_paragraph("\nSoatlar to'liq va adolatli taqsimlandi.")
+    doc.add_paragraph(f"\nQoldiq soat: {remaining_hours} soat")
     doc.add_paragraph("\nMaktab direktori: _______________  (Imzo)")
     
     file_path = f"dars_taqsimoti_{message.chat.id}.docx"

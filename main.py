@@ -286,7 +286,7 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     teachers = data['teachers']
     
     rate = data.get('rate', 20) 
-    max_limit = int(rate * 1.5) # 1.5 stavka (20 soatlik fan uchun 30 soat)
+    max_limit = int(rate * 1.5) # 30 soat
     total_hours = int(data['total_hours'])
     
     sorted_teachers = sorted(teachers, key=lambda x: x['step'])
@@ -294,21 +294,20 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     remaining_hours = total_hours
     teacher_assignments = {t['id']: 0 for t in sorted_teachers}
 
-    # 1-bosqich: Har bir o'qituvchiga navbatma-navbat 1.5 stavkagacha (max_limit) to'ldirib berish
-    for t in sorted_teachers:
+    # Taqsimot mantig'i: Oxirgi o'qituvchiga qolgan barcha darsni to'g'ridan-to'g'ri yopamiz
+    for idx, t in enumerate(sorted_teachers):
         if remaining_hours <= 0:
             break
-        can_take = max_limit - teacher_assignments[t['id']]
-        give = min(remaining_hours, can_take)
-        teacher_assignments[t['id']] += give
-        remaining_hours -= give
-
-    # 2-bosqich: Agar soat yana ortib qolsa (masalan, 2 ta o'qituvchi bo'lib ikkalasi ham 30 soatdan olgandan keyin ham soat qolgan bo'lsa), 
-    # oxirgi o'qituvchining limitini ochib yuborib, qolgan hamma soatni o'sha oxirgi o'qituvchiga to'liq yopamiz (taqsimlanmagan soat qolmasligi uchun).
-    if remaining_hours > 0 and sorted_teachers:
-        last_teacher_id = sorted_teachers[-1]['id']
-        teacher_assignments[last_teacher_id] += remaining_hours
-        remaining_hours = 0
+        
+        # Agar bu ro'yxatdagi oxirgi o'qituvchi bo'lsa, qolgan hamma soatni unga berib yuboramiz (ortiqcha soat qolmaydi)
+        if idx == len(sorted_teachers) - 1:
+            teacher_assignments[t['id']] += remaining_hours
+            remaining_hours = 0
+        else:
+            can_take = max_limit - teacher_assignments[t['id']]
+            give = min(remaining_hours, can_take)
+            teacher_assignments[t['id']] += give
+            remaining_hours -= give
 
     results = [(t, teacher_assignments[t['id']]) for t in sorted_teachers]
 

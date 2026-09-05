@@ -286,7 +286,7 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     teachers = data['teachers']
     
     rate = data.get('rate', 20) 
-    max_limit = int(rate * 1.5) # 1.5 stavka (masalan, 30 soat)
+    max_limit = int(rate * 1.5) # 1.5 stavka (20 soatlik fan uchun 30 soat)
     total_hours = int(data['total_hours'])
     
     sorted_teachers = sorted(teachers, key=lambda x: x['step'])
@@ -294,7 +294,7 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     remaining_hours = total_hours
     teacher_assignments = {t['id']: 0 for t in sorted_teachers}
 
-    # 1-bosqich: Har bir o'qituvchiga NAVBAT BILAN 1.5 stavkagacha (max_limit) to'ldirib berish
+    # 1-bosqich: Har bir o'qituvchiga navbatma-navbat 1.5 stavkagacha (max_limit) to'ldirib berish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -303,8 +303,8 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
         teacher_assignments[t['id']] += give
         remaining_hours -= give
 
-    # 2-bosqich: Agar shundan keyin ham dars ortib qolsa va oxirgi o'qituvchi ro'yxatda oxirgisi bo'lsa, 
-    # ortib qolgan qismni to'liq oxirgi o'qituvchiga berib yuborish (taqsimlanmagan soat qolmasligi uchun)
+    # 2-bosqich: Agar soat yana ortib qolsa (masalan, 2 ta o'qituvchi bo'lib ikkalasi ham 30 soatdan olgandan keyin ham soat qolgan bo'lsa), 
+    # oxirgi o'qituvchining limitini ochib yuborib, qolgan hamma soatni o'sha oxirgi o'qituvchiga to'liq yopamiz (taqsimlanmagan soat qolmasligi uchun).
     if remaining_hours > 0 and sorted_teachers:
         last_teacher_id = sorted_teachers[-1]['id']
         teacher_assignments[last_teacher_id] += remaining_hours
@@ -363,4 +363,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    

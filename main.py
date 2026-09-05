@@ -140,6 +140,11 @@ async def process_edu_level(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data.in_(["cls_bosh", "cls_yuqori"]))
 async def process_class_type(callback: types.CallbackQuery, state: FSMContext):
+    # Agar boshlang'ich sinf tanlansa 1 stavka = 18 soat, yuqori sinf uchun = 20 soat
+    is_bosh = (callback.data == "cls_bosh")
+    rate = 18 if is_bosh else 20
+    await state.update_data(rate=rate)
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Oliy toifa", callback_data="cat_oliy")],
         [InlineKeyboardButton(text="1-toifa", callback_data="cat_1")],
@@ -252,7 +257,7 @@ async def process_leader(callback: types.CallbackQuery, state: FSMContext):
             step = 9
             status_name = "O'rta maxsus o'qituvchi"
 
-    teachers = data['teachers']
+    teachers = data.get('teachers', [])
     teachers.append({
         "id": data['current_teacher'],
         "fish": data['current_teacher_name'],
@@ -285,16 +290,17 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     teachers = data['teachers']
     
-    rate = 20 # 1 stavka
-    max_limit = 30 # 1.5 stavka limit
+    rate = data.get('rate', 20) # Boshlang'ich uchun 18, yuqori uchun 20
+    max_limit = int(rate * 1.5) # 1.5 stavka limit (masalan, 20 soatlik uchun 30 soat)
     total_hours = int(data['total_hours'])
     
+    # Nizom ketma-ketligi bo'yicha saralash
     sorted_teachers = sorted(teachers, key=lambda x: x['step'])
     
     remaining_hours = total_hours
     teacher_assignments = {t['id']: 0 for t in sorted_teachers}
 
-    # To'g'rilangan taqsimot mantiqi: har bir o'qituvchiga navbat bilan 1.5 stavkagacha to'liq berib boriladi
+    # 1-bosqich: Har bir o'qituvchiga NAVBAT BILAN o'z limitigacha (1.5 stavkagacha) to'liq soat berib borish
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
@@ -302,6 +308,9 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
         give = min(remaining_hours, can_take)
         teacher_assignments[t['id']] += give
         remaining_hours -= give
+
+    # 2-bosqich: Agar shundan keyin ham dars ortib qolsa (masalan, o'qituvchilar kam bo'lib, jami soat juda ko'p bo'lsa), 
+    # cheklovni olib tashlab yoki taqsimotni davom ettirish mumkin, lekin hozirgi holatda 1.5 stavka limit yetarli bo'ladi.
 
     results = [(t, teacher_assignments[t['id']]) for t in sorted_teachers]
 

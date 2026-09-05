@@ -214,7 +214,6 @@ async def process_leader(callback: types.CallbackQuery, state: FSMContext):
     lead = callback.data.replace("lead_", "")
     data = await state.get_data()
     
-    # Aniqlash: qaysi ustuvorlik bosqichiga (step) kiradi
     cat = data.get('category_tier')
     cert = data.get('has_cert')
     ret = data.get('has_retrain')
@@ -262,9 +261,7 @@ async def process_leader(callback: types.CallbackQuery, state: FSMContext):
     })
     
     current = data['current_teacher']
-    total_teachers = data['teacher_count'] if 'teacher_count' in data else 1
     
-    # Agar hali o'qituvchilar tugamagan bo'lsa yoki yana qo'shishmoqchi bo'lsa
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Yana o'qituvchi qo'shish", callback_data="add_more_yes")],
         [InlineKeyboardButton(text="O'qituvchilar tugadi", callback_data="add_more_no")]
@@ -288,7 +285,7 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     teachers = data['teachers']
     
-    rate = 20 # Yuqori sinf uchun standart 1 stavka = 20 soat
+    rate = 20 # 1 stavka
     max_limit = 30 # 1.5 stavka limit
     total_hours = int(data['total_hours'])
     
@@ -297,28 +294,23 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     remaining_hours = total_hours
     teacher_assignments = {t['id']: 0 for t in sorted_teachers}
 
+    # To'g'rilangan taqsimot mantiqi: har bir o'qituvchiga navbat bilan 1.5 stavkagacha to'liq berib boriladi
     for t in sorted_teachers:
         if remaining_hours <= 0:
             break
-        give = min(remaining_hours, rate)
+        can_take = max_limit - teacher_assignments[t['id']]
+        give = min(remaining_hours, can_take)
         teacher_assignments[t['id']] += give
         remaining_hours -= give
-
-    for t in sorted_teachers:
-        if remaining_hours <= 0:
-            break
-        can_take_more = max_limit - teacher_assignments[t['id']]
-        if can_take_more > 0:
-            give_more = min(remaining_hours, can_take_more)
-            teacher_assignments[t['id']] += give_more
-            remaining_hours -= give_more
 
     results = [(t, teacher_assignments[t['id']]) for t in sorted_teachers]
 
     res_text = (
-        f"📊 <b>DARS TAQSIMOTI NATIJASI</b>\n\n"
+        f"📊 <b>DARS TAQSIMOTI NATIJASI</b>\n"
+        f"(RASMIY NIZOM BO'YICHA)\n\n"
         f"🔹 <b>Fan:</b> {data['subject_name']}\n"
         f"🔹 <b>Jami dars soati:</b> {total_hours} soat\n"
+        f"🔹 <b>1 stavka me'yori:</b> {rate} soat\n"
         f"🔹 <b>O'qituvchilar soni:</b> {len(teachers)} nafar\n\n"
         f"<b>Ustuvor ketma-ketlik bo'yicha taqsimot:</b>\n"
     )
@@ -334,7 +326,7 @@ async def finish_teachers(callback: types.CallbackQuery, state: FSMContext):
     if remaining_hours == 0:
         res_text += f"\n✅ <b>Barcha dars soatlari to'liq taqsimlandi!</b>"
     else:
-        res_text += f"\n⚠️ <b>Taqsimlanmay qolgan soat:</b> {remaining_hours} soat."
+        res_text += f"\n⚠️ <b>Taqsimlanmay qolgan dars soati:</b> {remaining_hours} soat."
 
     doc = docx.Document()
     doc.add_heading('DARS SOATLARINI TAQSIMLASH BAYONNOMASI', 0)
@@ -364,4 +356,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
